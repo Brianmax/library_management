@@ -36,10 +36,3 @@ class Rental(models.Model):
     reader = models.ForeignKey(Reader, on_delete=models.CASCADE)
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     rental_date = models.DateField(auto_now=True)
-
-
-class Staff(models.Model):
-    name = models.CharField(max_length=20)
-
-    def __str__(self):
-        return str(self.name)

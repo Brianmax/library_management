@@ -1,57 +1,54 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import BaseUserManager
 # Create your models here.models
 
 
-class CustomUserManager(BaseUserManager):
-    def create_user(self, dni, password, **extra_fields):
-        if not dni:
-            raise ValueError(("The DNI must be set"))
+class CustomManagerModel(BaseUserManager):
+    def create_user(self, dni, email, password=None,
+                    admin_pass=None, **extra_fields):
+        if not dni and email:
+            raise ValueError('The DNI field must provided')
 
-        user = self.model(dni=dni, **extra_fields)
+        email = self.normalize_email(email)
+        user = self.model(dni=dni, email=email, **extra_fields)
         user.set_password(password)
         user.save()
         return user
 
-    def create_superuser(self, email, password, **extra_fields):
-        pass
+    def create_superuser(self, email, password=None, admin_pass=None,
+                         **extra_fields):
+        if not admin_pass:
+            raise ValueError('You must provide an admin pass to be admin')
+
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_superuser(email, password,
+                                     admin_pass, **extra_fields)
 
 
-class BaseUser(AbstractBaseUser):
-    dni = models.CharField(primary_key=True, max_length=8, editable=False)
-    phone = models.CharField(max_length=10)
-    user_name = models.CharField(max_length=20)
-    secondName = models.CharField(max_length=20, default=None)
-    lastName = models.CharField(max_length=15)
-    email = models.EmailField()
-    objects = CustomUserManager()
-
-    def __str__(self):
-        return self.user_name
-
-    class Meta:
-        default_related_name = 'base_users'
-
-
-class TeacherUser(BaseUser):
-    university_department = models.CharField(max_length=20)
+class CustomUserModel(AbstractUser):
+    STUDENT = 1
+    TEACHER = 2
+    ADMINISTRADOR = 3
+    ROLE_CHOICES = ((STUDENT, 'student'),
+                    (TEACHER, 'Teacher'),
+                    (ADMINISTRADOR, 'Admin'))
+    dni = models.AutoField(primary_key=True)
+    email = models.EmailField(unique=True)
+    department = models.CharField(max_length=30)
     has_rented = models.BooleanField(default=False)
+    has_report = models.BooleanField(default=False)
+    number_of_books_allowed = models.BooleanField(default=1)
+    cupon = models.BooleanField(default=False)
+    # only if the user provides the admin_pass will be admin
+    admin_pass = models.CharField(default=None, max_length=10)
+    role = models.CharField(max_length=10,
+                            choices=ROLE_CHOICES, default='student')
+    objects = CustomManagerModel()
 
-    class Meta:
-        default_related_name = 'teachers_users'
-
-
-class StudentUser(BaseUser):
-    carrer = models.CharField(max_length=20)
-    has_rented = models.BooleanField(default=False)
-
-    class Meta:
-        default_related_name = 'students_users'
-
-
-class AdminLibrary(BaseUser):
-    last_report = models.DateField()
-
-    class Meta:
-        default_related_name = 'admin_library_users'
+    def save(self, *args, **kwargs):
+        if self.role == 'student':
+            self.number_of_books_allowed = 2
+        elif self.role == 'teacher' or self.role == 'admin':
+            self.number_of_books_allowed = 4
