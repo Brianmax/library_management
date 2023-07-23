@@ -13,6 +13,9 @@ class AuthorListView(ListAPIView):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
 
+    def perform_authentication(self, request):
+        pass
+
 
 class AuthorView(ListAPIView):
     authentication_classes = [SessionAuthentication, BasicAuthentication]
